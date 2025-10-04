@@ -1,0 +1,97 @@
+import express from "express";
+import jwt from "jsonwebtoken";
+import User from "../models/User.js";
+
+const router = express.Router();
+
+const generateToken = (userId) => {
+  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "15d" });
+};
+
+router.post("/register", async (req, res) => {
+  try {
+    const { email, username, password } = req.body;
+
+    if (!email || !username || !password) {
+      return res.status(400).json({ message: "Lütfen tüm alanarı doldudrun" });
+    }
+
+    if (password.length < 6) {
+      return res
+        .status(400)
+        .json({ message: "Şifre minimum 6 karakter olmalıdır" });
+    }
+
+    if (username.length < 3) {
+      return res
+        .status(400)
+        .json({ message: "username minimum 3 karakter olmalıdır" });
+    }
+
+    const ExistingEmail=await User.findOne({email})
+    if(ExistingEmail){
+      return res.status(400).json({ message: "Bu email zaten var" });
+    }
+
+    const user= new User({
+      email,
+      username,
+      password
+    })
+
+    await user.save();
+
+    const token =generateToken(user._id)
+
+    res.status(201).json({
+      token,
+      user:{
+        id:user._id,
+        username:user.username,
+        password:user.password,
+        createdAt:user.createdAt
+      }
+    })
+  } catch (error) {
+    console.log("Kullanıcı oluşturma hatası",error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.post("login",async (req,res)=>{
+  try {
+    const {email,password}= req.body
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "Lütfen tüm alanarı doldudrun" });
+    }
+
+    const user= await User.findOne({email});
+    if (!user) {
+      return res.status(400).json({message:"Böyle bir kullanıcı bulunamadı"})
+    }
+
+    const isPasswordCorrect=await user.comparePassword(password)
+    if (!isPasswordCorrect) {
+      return res.status(400).json({ message: "Invalid credentaials" });
+    }
+    
+    const token= generateToken(user._id)
+
+    res.status(200).json({
+      token,
+      user:{
+        id:user._id,
+        username:user.username,
+        password:user.password,
+        createdAt:user.createdAt
+      }
+    })
+
+  } catch (error) {
+    console.log("Kullanıcı giriş hatası",error);
+    res.status(500).json({ message: "Internal server error" })
+  }
+})
+
+export default router;
