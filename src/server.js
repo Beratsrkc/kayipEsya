@@ -6,10 +6,12 @@ import userRoutes from "./routes/authRoutes.js";
 import lostItemRoutes from "./routes/lostItemRoutes.js"
 
 import { connectDB } from "./lib/db.js";
+import job from "./lib/cron.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+job.start()
 app.use(express.json());
 app.use(cors());
 
